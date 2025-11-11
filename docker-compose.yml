@@ -1,13 +1,12 @@
 services:
   # PostgreSQL Database
-  db:
+  postgres:
     image: postgres:16-alpine
-    container_name: stms-db
+    container_name: stms-postgres
     restart: unless-stopped
-    environment:
-      POSTGRES_DB: stms
-      POSTGRES_USER: stms_user
-      POSTGRES_PASSWORD: stms_password
+    env_file:
+      - .env
+
     ports:
       - "5432:5432"
     volumes:
@@ -15,7 +14,7 @@ services:
     networks:
       - stms-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U stms_user -d stms"]
+      test: ["CMD-SHELL", "pg_isready -U ${STMS_API_POSTGRES_USERNAME} -d ${STMS_API_POSTGRES_DATABASE}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -27,18 +26,12 @@ services:
       dockerfile: Dockerfile
     container_name: stms-api
     restart: unless-stopped
+    env_file:
+      - .env
     ports:
       - "8080:8080"
-    environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/stms
-      SPRING_DATASOURCE_USERNAME: stms_user
-      SPRING_DATASOURCE_PASSWORD: stms_password
-      SPRING_JPA_HIBERNATE_DDL_AUTO: update
-      SPRING_JPA_SHOW_SQL: "true"
-      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
-      SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL: "true"
     depends_on:
-      db:
+      postgres:
         condition: service_healthy
     networks:
       - stms-network
@@ -56,6 +49,8 @@ services:
       dockerfile: Dockerfile
     container_name: stms-web
     restart: unless-stopped
+    env_file:
+      - .env
     ports:
       - "80:80"
     depends_on:

@@ -1,0 +1,81 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: stms-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${STMS_API_POSTGRES_DATABASE}
+      POSTGRES_USER: ${STMS_API_POSTGRES_USERNAME}
+      POSTGRES_PASSWORD: ${STMS_API_POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - stms-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${STMS_API_POSTGRES_USERNAME} -d ${STMS_API_POSTGRES_DATABASE}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Spring Boot API
+  api:
+    image: ${DOCKER_USERNAME}/stms-api:dev
+    container_name: stms-api
+    restart: unless-stopped
+    environment:
+      STMS_API_POSTGRES_HOST: ${STMS_API_POSTGRES_HOST}
+      STMS_API_POSTGRES_PORT: ${STMS_API_POSTGRES_PORT}
+      STMS_API_POSTGRES_DATABASE: ${STMS_API_POSTGRES_DATABASE}
+      STMS_API_POSTGRES_USERNAME: ${STMS_API_POSTGRES_USERNAME}
+      STMS_API_POSTGRES_PASSWORD: ${STMS_API_POSTGRES_PASSWORD}
+      STMS_API_BOOTSTRAP_ID: ${STMS_API_BOOTSTRAP_ID}
+      STMS_API_BOOTSTRAP_ROLE: ${STMS_API_BOOTSTRAP_ROLE}
+      STMS_API_ROOT_TENANT_NAME: ${STMS_API_ROOT_TENANT_NAME}
+      STMS_API_ROOT_USER_NAME: ${STMS_API_ROOT_USER_NAME}
+      STMS_API_ROOT_USER_USERNAME: ${STMS_API_ROOT_USER_USERNAME}
+      STMS_API_ROOT_USER_PASSWORD: ${STMS_API_ROOT_USER_PASSWORD}
+      STMS_API_ROOT_ROLE: ${STMS_API_ROOT_ROLE}
+      STMS_WEB_CLIENT_ID: ${STMS_WEB_CLIENT_ID}
+      STMS_WEB_REDIRECT_URI: ${STMS_WEB_REDIRECT_URI}
+      STMS_WEB_POST_LOGOUT_REDIRECT_URI: ${STMS_WEB_POST_LOGOUT_REDIRECT_URI}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - stms-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Vite React Web Frontend
+  web:
+    image: ${DOCKER_USERNAME}/stms-web:dev
+    container_name: stms-web
+    restart: unless-stopped
+    environment:
+      STMS_WEB_CLIENT_ID: ${STMS_WEB_CLIENT_ID}
+      STMS_WEB_REDIRECT_URI: ${STMS_WEB_REDIRECT_URI}
+      STMS_WEB_POST_LOGOUT_REDIRECT_URI: ${STMS_WEB_POST_LOGOUT_REDIRECT_URI}
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+    networks:
+      - stms-network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  stms-network:
+    driver: bridge
+
