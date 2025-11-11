@@ -1,0 +1,73 @@
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:16-alpine
+    container_name: stms-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: stms
+      POSTGRES_USER: stms_user
+      POSTGRES_PASSWORD: stms_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - stms-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stms_user -d stms"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Spring Boot API
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: stms-api
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/stms
+      SPRING_DATASOURCE_USERNAME: stms_user
+      SPRING_DATASOURCE_PASSWORD: stms_password
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_SHOW_SQL: "true"
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
+      SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - stms-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Vite React Web Frontend
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: stms-web
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+    networks:
+      - stms-network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  stms-network:
+    driver: bridge
+
