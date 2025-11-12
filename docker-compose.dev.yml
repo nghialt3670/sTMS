@@ -1,13 +1,12 @@
 services:
-  # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
     container_name: stms-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${STMS_API_POSTGRES_DATABASE}
-      POSTGRES_USER: ${STMS_API_POSTGRES_USERNAME}
-      POSTGRES_PASSWORD: ${STMS_API_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
@@ -15,17 +14,17 @@ services:
     networks:
       - stms-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${STMS_API_POSTGRES_USERNAME} -d ${STMS_API_POSTGRES_DATABASE}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # Spring Boot API
   api:
     image: ${DOCKER_USERNAME}/stms-api:dev
     container_name: stms-api
     restart: unless-stopped
     environment:
+      SPRING_PROFILES_ACTIVE: dev
       STMS_API_POSTGRES_HOST: ${STMS_API_POSTGRES_HOST}
       STMS_API_POSTGRES_PORT: ${STMS_API_POSTGRES_PORT}
       STMS_API_POSTGRES_DATABASE: ${STMS_API_POSTGRES_DATABASE}
@@ -55,15 +54,13 @@ services:
       retries: 3
       start_period: 40s
 
-  # Vite React Web Frontend
   web:
     image: ${DOCKER_USERNAME}/stms-web:dev
     container_name: stms-web
     restart: unless-stopped
     environment:
-      STMS_WEB_CLIENT_ID: ${STMS_WEB_CLIENT_ID}
-      STMS_WEB_REDIRECT_URI: ${STMS_WEB_REDIRECT_URI}
-      STMS_WEB_POST_LOGOUT_REDIRECT_URI: ${STMS_WEB_POST_LOGOUT_REDIRECT_URI}
+      VITE_CLIENT_ID: ${VITE_CLIENT_ID}
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL}
     ports:
       - "80:80"
     depends_on:
